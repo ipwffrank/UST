@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { fetchAllYieldSeries } from '../services/fredApi';
-import { calculateBollingerBands, getLatestSignal } from '../utils/bollingerUtils';
+import { calculateBollingerBands, calculateSpreadSeries, getLatestSignal } from '../utils/bollingerUtils';
 import { getCached, setCached } from '../utils/cacheUtils';
-import { MATURITIES, BOLLINGER, CACHE_TTL_HOURS } from '../constants/maturities';
+import { MATURITIES, SPREADS, BOLLINGER, CACHE_TTL_HOURS } from '../constants/maturities';
 
 const YieldDataContext = createContext(null);
 
@@ -110,6 +110,23 @@ export function YieldDataProvider({ children }) {
     }, {});
   }, [rawSeriesData, errors]);
 
+  // Compute Bollinger Band enrichment for each yield curve spread
+  const spreadData = useMemo(() => {
+    return SPREADS.reduce((acc, s) => {
+      const rawA = rawSeriesData[s.seriesA];
+      const rawB = rawSeriesData[s.seriesB];
+      if (!rawA || !rawB) {
+        acc[s.id] = { enrichedData: null, latestSignal: null, error: errors[s.seriesA] ?? errors[s.seriesB] ?? null };
+        return acc;
+      }
+      const spreadSeries = calculateSpreadSeries(rawA, rawB);
+      const enrichedData = calculateBollingerBands(spreadSeries, BOLLINGER.period, BOLLINGER.stdDev);
+      const latestSignal = getLatestSignal(enrichedData);
+      acc[s.id] = { enrichedData, latestSignal, error: null };
+      return acc;
+    }, {});
+  }, [rawSeriesData, errors]);
+
   const lastUpdated = useMemo(() => {
     let latest = null;
     for (const m of MATURITIES) {
@@ -120,7 +137,7 @@ export function YieldDataProvider({ children }) {
   }, [yieldData]);
 
   return (
-    <YieldDataContext.Provider value={{ yieldData, anyLoading: loading, loadingMessage, lastUpdated }}>
+    <YieldDataContext.Provider value={{ yieldData, spreadData, anyLoading: loading, loadingMessage, lastUpdated }}>
       {children}
     </YieldDataContext.Provider>
   );

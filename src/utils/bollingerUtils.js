@@ -61,11 +61,14 @@ export function calculateBollingerBands(dataArray, period = 20, stdDevMultiplier
     const upperBand = sma20 + stdDevMultiplier * sd;
     const lowerBand = sma20 - stdDevMultiplier * sd;
     const pb = _percentB(yieldValue, upperBand, lowerBand);
+    const zScore = sd > 0 ? round6((yieldValue - sma20) / sd) : 0;
 
     return {
       date: point.date,
       yield: yieldValue,
       sma20: round6(sma20),
+      stdDev: round6(sd),
+      zScore,
       upperBand: round6(upperBand),
       lowerBand: round6(lowerBand),
       isAboveBand: yieldValue > upperBand,
@@ -76,9 +79,22 @@ export function calculateBollingerBands(dataArray, period = 20, stdDevMultiplier
 }
 
 /**
+ * Align two raw FRED series by date (inner join) and compute their difference (b - a).
+ * @param {Array<{date: string, value: number}>} seriesA  — subtracted series (e.g. 2Y)
+ * @param {Array<{date: string, value: number}>} seriesB  — base series (e.g. 10Y)
+ * @returns {Array<{date: string, value: number}>}
+ */
+export function calculateSpreadSeries(seriesA, seriesB) {
+  const mapA = new Map(seriesA.map((p) => [p.date, p.value]));
+  return seriesB
+    .filter((p) => mapA.has(p.date))
+    .map((p) => ({ date: p.date, value: round6(p.value - mapA.get(p.date)) }));
+}
+
+/**
  * Return the most recent data point with valid band values.
  * @param {ReturnType<typeof calculateBollingerBands>} enrichedData
- * @returns {{date, yield, sma20, upperBand, lowerBand, percentB, signal, sufficientHistory}|null}
+ * @returns {{date, yield, sma20, stdDev, zScore, upperBand, lowerBand, percentB, signal, sufficientHistory}|null}
  */
 export function getLatestSignal(enrichedData) {
   if (!Array.isArray(enrichedData) || enrichedData.length === 0) return null;

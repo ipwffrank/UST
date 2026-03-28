@@ -6,6 +6,13 @@ export const MATURITIES = [
   { id: 'DGS30', label: '30-Year', shortLabel: '30Y', color: '#a78bfa' },
 ];
 
+// Yield curve spread definitions — { id, label, shortLabel, color, type, seriesA, seriesB }
+// spread = seriesB.value - seriesA.value
+export const SPREADS = [
+  { id: '2Y10Y', label: '2Y–10Y Spread (bps)', shortLabel: '2Y10Y', color: '#fb923c', type: 'spread', seriesA: 'DGS2',  seriesB: 'DGS10' },
+  { id: '10Y30Y', label: '10Y–30Y Spread (bps)', shortLabel: '10Y30Y', color: '#e879f9', type: 'spread', seriesA: 'DGS10', seriesB: 'DGS30' },
+];
+
 export const BOLLINGER = {
   period: 20,
   stdDev: 2,

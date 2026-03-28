@@ -172,7 +172,9 @@ export default function BollingerChart({ maturity, enrichedData, latestSignal })
       <div className="chart-header">
         <div className="chart-title">
           <span className="maturity-dot" style={{ background: maturity.color }} />
-          <span className="maturity-label">US {maturity.label} Treasury</span>
+          <span className="maturity-label">
+            {maturity.type === 'spread' ? maturity.label : `US ${maturity.label} Treasury`}
+          </span>
         </div>
         <div className="chart-meta">
           {latestSignal?.sufficientHistory && (
@@ -194,6 +196,14 @@ export default function BollingerChart({ maturity, enrichedData, latestSignal })
           <span>Lower <b style={{ color: '#22c55e' }}>{formatYield(latestSignal.lowerBand)}</b></span>
           {latestSignal.percentB != null && (
             <span>%B <b style={{ color: '#e2e8f0' }}>{(latestSignal.percentB * 100).toFixed(1)}</b></span>
+          )}
+          {latestSignal.zScore != null && (
+            <span>
+              SD&nbsp;
+              <b style={{ color: latestSignal.zScore > 0 ? '#f87171' : latestSignal.zScore < 0 ? '#34d399' : '#e2e8f0' }}>
+                {latestSignal.zScore > 0 ? '+' : ''}{latestSignal.zScore.toFixed(2)}σ
+              </b>
+            </span>
           )}
         </div>
       )}
