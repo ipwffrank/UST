@@ -7,7 +7,7 @@ import { MATURITIES } from './constants/maturities';
 import './App.css';
 
 function Dashboard() {
-  const { yieldData, anyLoading, lastUpdated } = useYieldDataContext();
+  const { yieldData, anyLoading, loadingMessage, lastUpdated } = useYieldDataContext();
 
   const allErrors = MATURITIES
     .filter((m) => yieldData[m.id]?.error)
@@ -31,7 +31,9 @@ function Dashboard() {
 
       <main className="dashboard">
         {anyLoading && !anyData && (
-          <LoadingSpinner label="Fetching 15 years of Treasury yield data from FRED…" />
+          <LoadingSpinner
+            label={loadingMessage || 'Loading 15 years of yield data\u2026 (first load only, cached after)'}
+          />
         )}
 
         {allErrors.length > 0 && (
@@ -42,11 +44,6 @@ function Dashboard() {
           <div className="chart-grid">
             {MATURITIES.map((maturity) => {
               const d = yieldData[maturity.id];
-              if (d.loading && !d.enrichedData) return (
-                <div key={maturity.id} className="chart-panel chart-panel--loading">
-                  <LoadingSpinner label={`Loading ${maturity.label}…`} />
-                </div>
-              );
               if (d.error && !d.enrichedData) return (
                 <div key={maturity.id} className="chart-panel chart-panel--error">
                   <ErrorMessage message={`${maturity.label}: ${d.error}`} />

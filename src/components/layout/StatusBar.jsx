@@ -4,7 +4,7 @@ export default function StatusBar({ lastUpdated, anyLoading }) {
   return (
     <div className="status-bar">
       <span className="status-source">
-        Data: FRED (Federal Reserve) — DGS2 · DGS5 · DGS7 · DGS10
+        Data: FRED (Federal Reserve) — DGS2 · DGS5 · DGS7 · DGS10 · DGS30
       </span>
       <span className="status-right">
         {anyLoading

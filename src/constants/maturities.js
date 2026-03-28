@@ -3,6 +3,7 @@ export const MATURITIES = [
   { id: 'DGS5',  label: '5-Year',  shortLabel: '5Y', color: '#34d399' },
   { id: 'DGS7',  label: '7-Year',  shortLabel: '7Y', color: '#f59e0b' },
   { id: 'DGS10', label: '10-Year', shortLabel: '10Y', color: '#f87171' },
+  { id: 'DGS30', label: '30-Year', shortLabel: '30Y', color: '#a78bfa' },
 ];
 
 export const BOLLINGER = {

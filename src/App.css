@@ -60,8 +60,14 @@
   gap: 16px;
 }
 
+.chart-grid > *:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  max-width: 50%;
+}
+
 @media (max-width: 900px) {
   .chart-grid { grid-template-columns: 1fr; }
+  .chart-grid > *:last-child:nth-child(odd) { grid-column: unset; max-width: unset; }
 }
 
 /* ── Chart panel ─────────────────────────────────────────── */

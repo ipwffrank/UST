@@ -9,9 +9,9 @@
 const FRED_BASE = 'https://api.stlouisfed.org/fred/series/observations';
 const OBSERVATION_START = '2010-01-01';
 
-export const handler = async (event) => {
+exports.handler = async function (event) {
   const series = event.queryStringParameters?.series;
-  const validSeries = ['DGS2', 'DGS5', 'DGS7', 'DGS10'];
+  const validSeries = ['DGS2', 'DGS5', 'DGS7', 'DGS10', 'DGS30'];
 
   if (!series || !validSeries.includes(series)) {
     return {

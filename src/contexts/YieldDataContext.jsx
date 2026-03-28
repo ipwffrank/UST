@@ -1,53 +1,116 @@
-import { createContext, useContext, useMemo } from 'react';
-import { useYieldData } from '../hooks/useYieldData';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { fetchAllYieldSeries } from '../services/fredApi';
 import { calculateBollingerBands, getLatestSignal } from '../utils/bollingerUtils';
-import { MATURITIES, BOLLINGER } from '../constants/maturities';
+import { getCached, setCached } from '../utils/cacheUtils';
+import { MATURITIES, BOLLINGER, CACHE_TTL_HOURS } from '../constants/maturities';
 
 const YieldDataContext = createContext(null);
 
+const SERIES_IDS = MATURITIES.map((m) => m.id); // ['DGS2','DGS5','DGS7','DGS10','DGS30']
+
 /**
- * Provides enriched Bollinger Band data for all 4 maturities.
- * Each maturity exposes: { rawData, enrichedData, latestSignal, loading, error }
+ * Provides enriched Bollinger Band data for all 5 maturities.
+ *
+ * On mount:
+ *   - If ALL series are in a fresh localStorage cache, uses cached data (instant load).
+ *   - If any series is stale or missing, fires a single batch request to fetch all
+ *     series in parallel server-side, then caches each result individually.
+ *
+ * Context value: { yieldData, anyLoading, loadingMessage, lastUpdated }
+ *   yieldData[seriesId]: { rawData, enrichedData, latestSignal, error }
  */
-function MaturityProvider({ maturity, children }) {
-  // This pattern fetches one series at a time. We compose all 4 in the root provider.
-  const { data, loading, error } = useYieldData(maturity.id);
-  return { data, loading, error };
-}
-
 export function YieldDataProvider({ children }) {
-  const dgs2  = useYieldData('DGS2');
-  const dgs5  = useYieldData('DGS5');
-  const dgs7  = useYieldData('DGS7');
-  const dgs10 = useYieldData('DGS10');
+  // rawSeriesData: { DGS2: [...], DGS5: [...], ... } or null per series
+  const [rawSeriesData, setRawSeriesData] = useState(() => {
+    // Seed from cache synchronously so a fully-cached page renders without a loading flash
+    const seed = {};
+    for (const id of SERIES_IDS) {
+      seed[id] = getCached(id, CACHE_TTL_HOURS); // null if missing/stale
+    }
+    return seed;
+  });
 
-  const sources = { DGS2: dgs2, DGS5: dgs5, DGS7: dgs7, DGS10: dgs10 };
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [errors, setErrors] = useState({}); // { [seriesId]: string }
 
-  // Compute enriched data (Bollinger Bands) for each maturity.
-  // useMemo so we don't recompute on unrelated renders.
+  useEffect(() => {
+    // Determine which series still need a fresh fetch
+    const staleIds = SERIES_IDS.filter((id) => !rawSeriesData[id]);
+
+    if (staleIds.length === 0) {
+      // Everything came from cache — nothing to do
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadBatch() {
+      setLoading(true);
+      setLoadingMessage(
+        'Loading 15 years of yield data\u2026 (first load only, cached after)'
+      );
+      setErrors({});
+
+      try {
+        // Single network round-trip — the batch function fans out to FRED in parallel
+        const batchResult = await fetchAllYieldSeries(SERIES_IDS);
+
+        if (cancelled) return;
+
+        // Cache each series individually (same TTL as before)
+        for (const id of SERIES_IDS) {
+          if (batchResult[id]) {
+            setCached(id, batchResult[id]);
+          }
+        }
+
+        setRawSeriesData((prev) => {
+          const next = { ...prev };
+          for (const id of SERIES_IDS) {
+            if (batchResult[id]) next[id] = batchResult[id];
+          }
+          return next;
+        });
+      } catch (err) {
+        if (cancelled) return;
+        // Apply the error to every series that was still missing
+        const errMap = {};
+        for (const id of staleIds) errMap[id] = err.message;
+        setErrors(errMap);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingMessage('');
+        }
+      }
+    }
+
+    loadBatch();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount — cache seeding happens in useState initializer
+
+  // Compute Bollinger Band enrichment for each maturity
   const yieldData = useMemo(() => {
     return MATURITIES.reduce((acc, m) => {
-      const src = sources[m.id];
-      const enrichedData = src.data
-        ? calculateBollingerBands(src.data, BOLLINGER.period, BOLLINGER.stdDev)
+      const raw = rawSeriesData[m.id];
+      const enrichedData = raw
+        ? calculateBollingerBands(raw, BOLLINGER.period, BOLLINGER.stdDev)
         : null;
       const latestSignal = enrichedData ? getLatestSignal(enrichedData) : null;
 
       acc[m.id] = {
-        rawData: src.data,
+        rawData: raw,
         enrichedData,
         latestSignal,
-        loading: src.loading,
-        error: src.error,
+        error: errors[m.id] ?? null,
       };
       return acc;
     }, {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dgs2.data, dgs5.data, dgs7.data, dgs10.data]);
+  }, [rawSeriesData, errors]);
 
-  const anyLoading = MATURITIES.some((m) => yieldData[m.id]?.loading);
   const lastUpdated = useMemo(() => {
-    // Use the most recent date across all series
     let latest = null;
     for (const m of MATURITIES) {
       const sig = yieldData[m.id]?.latestSignal;
@@ -57,7 +120,7 @@ export function YieldDataProvider({ children }) {
   }, [yieldData]);
 
   return (
-    <YieldDataContext.Provider value={{ yieldData, anyLoading, lastUpdated }}>
+    <YieldDataContext.Provider value={{ yieldData, anyLoading: loading, loadingMessage, lastUpdated }}>
       {children}
     </YieldDataContext.Provider>
   );
