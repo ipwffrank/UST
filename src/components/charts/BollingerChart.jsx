@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { createChart, LineStyle } from 'lightweight-charts';
+import { createChart, LineSeries, LineStyle } from 'lightweight-charts';
 import { formatYield, formatDate } from '../../utils/formatters';
 
 /**
@@ -21,7 +21,7 @@ export default function BollingerChart({ maturity, enrichedData, latestSignal })
     if (!data || data.length === 0) return;
 
     // Upper band — dashed red
-    const upperSeries = chart.addLineSeries({
+    const upperSeries = chart.addSeries(LineSeries, {
       color: 'rgba(239,68,68,0.7)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
@@ -31,7 +31,7 @@ export default function BollingerChart({ maturity, enrichedData, latestSignal })
     });
 
     // Lower band — dashed green
-    const lowerSeries = chart.addLineSeries({
+    const lowerSeries = chart.addSeries(LineSeries, {
       color: 'rgba(34,197,94,0.7)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
@@ -41,7 +41,7 @@ export default function BollingerChart({ maturity, enrichedData, latestSignal })
     });
 
     // SMA middle line — subdued gray
-    const smaSeries = chart.addLineSeries({
+    const smaSeries = chart.addSeries(LineSeries, {
       color: 'rgba(148,163,184,0.6)',
       lineWidth: 1,
       lineStyle: LineStyle.Dotted,
@@ -51,7 +51,7 @@ export default function BollingerChart({ maturity, enrichedData, latestSignal })
     });
 
     // Raw yield — bold, maturity color
-    const yieldSeries = chart.addLineSeries({
+    const yieldSeries = chart.addSeries(LineSeries, {
       color: maturity.color,
       lineWidth: 2,
       priceLineVisible: true,
